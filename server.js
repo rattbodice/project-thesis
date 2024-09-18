@@ -9,15 +9,18 @@ const cookieParser = require('cookie-parser');
 // นำเข้าโมเดลทั้งหมดที่สร้างขึ้นมา
 const User = require('./models/User');
 const Course = require('./models/Course');
+const TopicCourse = require('./models/TopicCourse');
+const SubTopicCourse = require('./models/SubTopicCourse');
 const Video = require('./models/Video');
 const Question = require('./models/Question');
-const Quiz = require('./models/Quiz');
-const QuizQuestion = require('./models/QuizQuestion');
-const Path = require('./models/Path');
 const Document = require('./models/Document');
 const DocumentTopic = require('./models/DocumentTopic');
 const DocumentSubtopic = require('./models/DocumentSubtopic');
 const DocumentContent = require('./models/DocumentContent');
+const TypeOrderContent = require('./models/TypeOrderContent');
+const ImageContent = require('./models/ImageContent');
+const VideoContent = require('./models/VideoContent');
+const TextContent = require('./models/TextContent');
 
 // ========================
 // Middleware settings
@@ -43,8 +46,11 @@ app.use(express.static('public'));
 // Route
 // ========================
 const userRoutes = require('./routes/userRoutes')
+const courseRoutes = require('./routes/courseRoutes')
 
 app.use('/api/users', userRoutes);
+app.use('/api/course', courseRoutes);
+
 const { verifyToken } = require('./middleware/auth');
 app.get('/protected', verifyToken, (req, res) => {
   res.json({

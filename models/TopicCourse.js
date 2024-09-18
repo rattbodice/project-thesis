@@ -11,10 +11,10 @@ const TopicCourse = sequelize.define('TopicCourse', {
     type: DataTypes.TEXT,
     allowNull: false,
   },
-  in_form: {
+  course_id: {
     type: DataTypes.INTEGER,
     references: {
-      model: User,
+      model: Course,
       key: 'id',
     },
   },
@@ -22,5 +22,5 @@ const TopicCourse = sequelize.define('TopicCourse', {
   timestamps: true,
 });
 
-Course.belongsTo(User, { foreignKey: 'created_by' });
-module.exports = Course;
+TopicCourse.belongsTo(Course, { foreignKey: 'course_id' });
+module.exports = TopicCourse;

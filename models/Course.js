@@ -1,6 +1,7 @@
-const { DataTypes } = require('sequelize');
+const { DataTypes, INTEGER } = require('sequelize');
 const sequelize = require('../config/database');
 const User = require('./User');
+const ImageContent = require('./ImageContent')
 
 const Course = sequelize.define('Course', {
   title: {
@@ -10,6 +11,14 @@ const Course = sequelize.define('Course', {
   description: {
     type: DataTypes.TEXT,
     allowNull: false,
+  },
+  image_id:{
+    type: INTEGER,
+    allowNull: true,
+    references: {
+      model: ImageContent,
+      key: 'id'
+    }
   },
   created_by: {
     type: DataTypes.INTEGER,
@@ -23,4 +32,5 @@ const Course = sequelize.define('Course', {
 });
 
 Course.belongsTo(User, { foreignKey: 'created_by' });
+Course.belongsTo(ImageContent, { foreignKey: 'image_id' });
 module.exports = Course;

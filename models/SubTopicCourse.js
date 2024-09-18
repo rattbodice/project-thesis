@@ -1,8 +1,8 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const Course = require('./Course');
+const TopicCourse = require('./TopicCourse');
 
-const Quiz = sequelize.define('Quiz', {
+const SubTopicCourse = sequelize.define('SubTopicCourse', {
   title: {
     type: DataTypes.STRING,
     allowNull: false,
@@ -11,10 +11,10 @@ const Quiz = sequelize.define('Quiz', {
     type: DataTypes.TEXT,
     allowNull: false,
   },
-  course_id: {
+  topic_course_id: {
     type: DataTypes.INTEGER,
     references: {
-      model: Course,
+      model: TopicCourse,
       key: 'id',
     },
   },
@@ -22,5 +22,5 @@ const Quiz = sequelize.define('Quiz', {
   timestamps: true,
 });
 
-Quiz.belongsTo(Course, { foreignKey: 'course_id' });
-module.exports = Quiz;
+SubTopicCourse.belongsTo(TopicCourse, { foreignKey: 'topic_course_id' });
+module.exports = SubTopicCourse;

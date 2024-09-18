@@ -1,13 +1,13 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const Course = require('./Course');
+const SubTopicCourse = require('./SubTopicCourse');
 
 const Video = sequelize.define('Video', {
   title: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  file_url: {
+  file_path: {
     type: DataTypes.STRING,
     allowNull: false,
   },
@@ -15,10 +15,10 @@ const Video = sequelize.define('Video', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  course_id: {
+  sub_topic_course_id: {
     type: DataTypes.INTEGER,
     references: {
-      model: Course,
+      model: SubTopicCourse,
       key: 'id',
     },
   },
@@ -26,5 +26,5 @@ const Video = sequelize.define('Video', {
   timestamps: true,
 });
 
-Video.belongsTo(Course, { foreignKey: 'course_id' });
+Video.belongsTo(SubTopicCourse, { foreignKey: 'sub_topic_course_id' });
 module.exports = Video;

@@ -1,6 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const Course = require('./Course');
+const User = require('./User');
 
 const Document = sequelize.define('Document', {
   title: {
@@ -11,10 +11,10 @@ const Document = sequelize.define('Document', {
     type: DataTypes.TEXT,
     allowNull: false,
   },
-  course_id: {
+  created_by: {
     type: DataTypes.INTEGER,
     references: {
-      model: Course,
+      model: User,
       key: 'id',
     },
   },
@@ -22,5 +22,5 @@ const Document = sequelize.define('Document', {
   timestamps: true,
 });
 
-Document.belongsTo(Course, { foreignKey: 'course_id' });
+Document.belongsTo(User, { foreignKey: 'created_by' });
 module.exports = Document;
