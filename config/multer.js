@@ -1,6 +1,7 @@
 const multer = require('multer');
 const path = require('path');
 
+
 // คลาสหลักที่ใช้จัดการการอัปโหลดไฟล์
 class FileUploader {
   constructor(destinationPath) {
@@ -19,8 +20,7 @@ class FileUploader {
   getUploader(fileFilter) {
     return multer({
       storage: this.storage,
-      limits: { fileSize: 1024 * 1024 * 50 },
-      fileFilter: fileFilter,
+      fileFilter: fileFilter, // ไม่ตั้งค่า limits.fileSize เพื่อไม่จำกัดขนาดไฟล์
     });
   }
 

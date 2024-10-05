@@ -1,6 +1,5 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const SubTopicCourse = require('./SubTopicCourse');
 
 const Video = sequelize.define('Video', {
   title: {
@@ -15,16 +14,9 @@ const Video = sequelize.define('Video', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-  sub_topic_course_id: {
-    type: DataTypes.INTEGER,
-    references: {
-      model: SubTopicCourse,
-      key: 'id',
-    },
-  },
+  
 }, {
   timestamps: true,
 });
 
-Video.belongsTo(SubTopicCourse, { foreignKey: 'sub_topic_course_id' });
 module.exports = Video;

@@ -2,6 +2,7 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 const Course = require('./Course');
 
+
 const TopicCourse = sequelize.define('TopicCourse', {
   title: {
     type: DataTypes.STRING,
@@ -18,9 +19,19 @@ const TopicCourse = sequelize.define('TopicCourse', {
       key: 'id',
     },
   },
+  level: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+  no: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  }
+  
 }, {
   timestamps: true,
 });
 
 TopicCourse.belongsTo(Course, { foreignKey: 'course_id' });
+
 module.exports = TopicCourse;

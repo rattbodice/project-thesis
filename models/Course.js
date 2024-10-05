@@ -20,6 +20,10 @@ const Course = sequelize.define('Course', {
       key: 'id'
     }
   },
+  level:{
+    type: INTEGER,
+    allowNull: false
+  },
   created_by: {
     type: DataTypes.INTEGER,
     references: {
@@ -32,5 +36,7 @@ const Course = sequelize.define('Course', {
 });
 
 Course.belongsTo(User, { foreignKey: 'created_by' });
-Course.belongsTo(ImageContent, { foreignKey: 'image_id' });
+// ใน Course model
+Course.belongsTo(ImageContent, { foreignKey: 'image_id', as: 'image' }); // ใช้ alias 'image'
+
 module.exports = Course;

@@ -3,15 +3,16 @@ const cors = require('cors');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
 const app = express();
+const path = require('path');
 const sequelize = require('./config/database');
 const cookieParser = require('cookie-parser');
 
 // นำเข้าโมเดลทั้งหมดที่สร้างขึ้นมา
 const User = require('./models/User');
 const Course = require('./models/Course');
+const Video = require('./models/Video');
 const TopicCourse = require('./models/TopicCourse');
 const SubTopicCourse = require('./models/SubTopicCourse');
-const Video = require('./models/Video');
 const Question = require('./models/Question');
 const Document = require('./models/Document');
 const DocumentTopic = require('./models/DocumentTopic');
@@ -22,6 +23,9 @@ const ImageContent = require('./models/ImageContent');
 const VideoContent = require('./models/VideoContent');
 const TextContent = require('./models/TextContent');
 
+TopicCourse.hasMany(SubTopicCourse, { foreignKey: 'topic_course_id', as: 'subTopics' });
+
+
 // ========================
 // Middleware settings
 // ========================
@@ -29,6 +33,7 @@ const TextContent = require('./models/TextContent');
 // ใช้ body-parser เพื่อแยกข้อมูล request body เป็น JSON
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(cookieParser());
 // ตั้งค่า CORS ให้อนุญาตการเชื่อมต่อจากต่างโดเมน (เช่น จาก frontend)
 app.use(cors({
