@@ -1,6 +1,6 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const Video = require('./Video');
+const SubTopicCourse = require('./SubTopicCourse');
 
 const Question = sequelize.define('Question', {
   time_in_video: {
@@ -19,10 +19,10 @@ const Question = sequelize.define('Question', {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  video_id: {
+  subTopic_id: {
     type: DataTypes.INTEGER,
     references: {
-      model: Video,
+      model: SubTopicCourse,
       key: 'id',
     },
   },
@@ -30,5 +30,5 @@ const Question = sequelize.define('Question', {
   timestamps: true,
 });
 
-Question.belongsTo(Video, { foreignKey: 'video_id' });
+Question.belongsTo(SubTopicCourse, { foreignKey: 'subTopic_id' });
 module.exports = Question;

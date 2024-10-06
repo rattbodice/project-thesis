@@ -24,7 +24,7 @@ const VideoContent = require('./models/VideoContent');
 const TextContent = require('./models/TextContent');
 
 TopicCourse.hasMany(SubTopicCourse, { foreignKey: 'topic_course_id', as: 'subTopics' });
-
+SubTopicCourse.hasMany(Question, {foreignKey: 'subTopic_id', as: 'questions'})
 
 // ========================
 // Middleware settings
@@ -52,9 +52,13 @@ app.use(express.static('public'));
 // ========================
 const userRoutes = require('./routes/userRoutes')
 const courseRoutes = require('./routes/courseRoutes')
+const questionRoutes = require('./routes/questionRoutes')
+const progressUserVideo = require('./routes/videoProgressRoutes')
 
 app.use('/api/users', userRoutes);
 app.use('/api/course', courseRoutes);
+app.use('/api/question', questionRoutes);
+app.use('/api/progressVideo', progressUserVideo);
 
 const { verifyToken } = require('./middleware/auth');
 app.get('/protected', verifyToken, (req, res) => {
