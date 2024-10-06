@@ -34,7 +34,7 @@ const UserVideoProgress = sequelize.define('UserVideoProgress', {
 });
 
 
-UserVideoProgress.belongsTo(User, { foreignKey: 'id' });
-UserVideoProgress.belongsTo(SubTopicCourse, { foreignKey: 'id' });
+UserVideoProgress.belongsTo(User, { foreignKey: 'user_id' });
+UserVideoProgress.belongsTo(SubTopicCourse, { foreignKey: 'subtopic_id' });
 
 module.exports = UserVideoProgress;

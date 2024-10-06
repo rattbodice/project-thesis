@@ -1,14 +1,20 @@
 const UserVideoProgress = require('../models/UserVideoProgress');
+const User = require('../models/User');
 
 exports.createUserVideoProgress = async (req, res) => {
   try {
     const { user_id, subtopic_id, last_watched_time, is_finished } = req.body;
 
+    const userExists = await User.findOne({ where: { id: user_id } });
+if (!userExists) {
+    return res.status(400).json({ error: 'User does not exist.' });
+}
+
     // ตรวจสอบว่าเป็นข้อมูลที่ถูกต้องหรือไม่
     if (last_watched_time < 0) {
       return res.status(400).json({ error: 'Last watched time must be a positive number.' });
     }
-
+    console.log('--------------------------------------------------------'+user_id)
     // ค้นหาข้อมูล UserVideoProgress ที่มีอยู่
     const existingProgress = await UserVideoProgress.findOne({
       where: {
