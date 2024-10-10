@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 const TopicCourse = require('./TopicCourse');
-const Video = require('./Video')
+const Video = require('./Video');
 
 const SubTopicCourse = sequelize.define('SubTopicCourse', {
   title: {
@@ -15,10 +15,10 @@ const SubTopicCourse = sequelize.define('SubTopicCourse', {
   video_id: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    references:{
+    references: {
       model: Video,
-      key: 'id'
-    }
+      key: 'id',
+    },
   },
   topic_course_id: {
     type: DataTypes.INTEGER,
@@ -30,10 +30,18 @@ const SubTopicCourse = sequelize.define('SubTopicCourse', {
   no: {
     type: DataTypes.INTEGER,
     allowNull: false,
-  }
+  },
+  level: {  // เพิ่ม attribute level ที่นี่
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 1, // ตั้งค่าค่าเริ่มต้นเป็น 1
+  },
 }, {
   timestamps: true,
 });
+
+// สร้างความสัมพันธ์
 SubTopicCourse.belongsTo(Video, { foreignKey: 'video_id', as: 'video' });
 SubTopicCourse.belongsTo(TopicCourse, { foreignKey: 'topic_course_id' });
+
 module.exports = SubTopicCourse;

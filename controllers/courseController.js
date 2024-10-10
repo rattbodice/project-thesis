@@ -4,11 +4,17 @@ const Video = require('../models/Video');
 const ImageContent = require("../models/ImageContent");
 const TopicCourse = require("../models/TopicCourse");
 const SubTopicCourse = require("../models/SubTopicCourse");
+const Answer = require("../models/Answer"); // นำเข้าคำตอบ
+const Question = require("../models/Question"); // นำเข้าคำถาม
+const UserVideoProgress = require("../models/UserVideoProgress");
 const path = require("path");
 const fs = require("fs");
 const multer = require('multer');
 const { VideoUploader,FileUploader } = require('../config/multer'); // นำเข้า VideoUploader
 const videoUploader = new VideoUploader().getUploader(FileUploader.videoFilter); // เรียกใช้ VideoUploader
+const { Op } = require('sequelize');
+const { Sequelize } = require('sequelize');
+
 
 // ตรวจสอบว่ามีโฟลเดอร์ 'uploads/images' หรือไม่ ถ้าไม่มีก็สร้างโฟลเดอร์นี้
 const ensureUploadFolderExists = (folderPath) => {
@@ -166,6 +172,36 @@ exports.createTopicCourse = async (req, res) => {
   }
 };
 
+exports.editTopicCourse = async (req, res) => {
+  const { id } = req.params; // ID ของหัวข้อที่ต้องการแก้ไขจะถูกส่งผ่าน params
+  const { title, description, level } = req.body;
+
+  try {
+    // ตรวจสอบว่าหัวข้อที่ต้องการแก้ไขมีอยู่ในระบบหรือไม่
+    const topicCourse = await TopicCourse.findByPk(id);
+
+    if (!topicCourse) {
+      return res.status(404).json({ message: "ไม่พบหัวข้อที่ต้องการแก้ไข" });
+    }
+
+    // ทำการอัปเดตข้อมูลหัวข้อ
+    topicCourse.title = title || topicCourse.title;
+    topicCourse.description = description || topicCourse.description;
+    topicCourse.level = level || topicCourse.level;
+
+    // บันทึกการเปลี่ยนแปลงลงฐานข้อมูล
+    await topicCourse.save();
+
+    return res.status(200).json({ message: "แก้ไขหัวข้อสำเร็จ", topicCourse });
+  } catch (error) {
+    console.error(error);
+    return res
+      .status(500)
+      .json({ message: "เกิดข้อผิดพลาดในการแก้ไขหัวข้อ" });
+  }
+};
+
+
 exports.getAllTopicCourse = async (req, res) => {
   try {
     const courseId = req.query.courseId; // Get the courseId from query parameters
@@ -189,6 +225,7 @@ exports.getAllTopicCourse = async (req, res) => {
 
     return res.status(200).json(topicCourse); // Return topics as a JSON response
   } catch (error) {
+    console.log(error)
     return res
       .status(500)
       .json({ message: "เกิดข้อผิดพลาดในการดึงข้อมูลหัวข้อ" });
@@ -251,6 +288,26 @@ exports.createSubTopic = async (req, res) => {
   }
 };
 
+exports.orderSubtopic = async (req,res) => {
+  const order = req.body;
+
+  try {
+    await Promise.all(order.map(async ({ id, no, level }) => { // เพิ่ม level เข้ามาใน destructuring
+      const subTopic = await SubTopicCourse.findByPk(id);
+      if (subTopic) {
+        subTopic.no = no;
+        subTopic.level = level; // อัปเดต level ด้วย
+        await subTopic.save();
+      }
+    }));
+
+    res.json({ message: 'อัปเดตลำดับและระดับสำเร็จ' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการอัปเดตลำดับ' });
+  }
+}
+
 exports.getSubTopicsByTopicCourseId = async (req, res) => {
   try {
     const { topic_course_id } = req.params; // ดึงค่า topic_course_id จาก URL
@@ -298,3 +355,101 @@ exports.getSubTopicById = async (req, res) => {
     res.status(500).json({ error: 'เกิดข้อผิดพลาดในการดึงข้อมูล SubTopic' });
   }
 };
+
+
+
+exports.editSubTopic = async (req, res) => {
+  const { subtopicId, title, description } = req.body;
+
+  try {
+      // ค้นหา SubTopic โดย ID
+      const subtopic = await SubTopicCourse.findByPk(subtopicId);
+
+      if (!subtopic) {
+          return res.status(404).json({ error: 'SubTopic not found' });
+      }   
+
+      // หากมีวิดีโอใหม่ให้จัดการกับการอัพโหลด
+      if (req.file) {
+          // ลบวิดีโอเก่าหากมี
+          if (subtopic.video_id) {
+              const oldVideo = await Video.findByPk(subtopic.video_id);
+              if (oldVideo) {
+                  const oldVideoPath = path.join(__dirname, "../",oldVideo.file_path);
+                  fs.unlink(oldVideoPath, (err) => {
+                      if (err) console.error('Error deleting old video:', err);
+                  });
+              }
+          }
+
+          // สร้างวิดีโอใหม่ในฐานข้อมูล
+          const newVideo = await Video.create({
+              title: req.file.filename,
+              file_path: req.file.path,
+              duration: 0, // คุณสามารถตั้งค่า duration ถ้ารู้ หรือคำนวณจากไฟล์ได้
+          });
+
+          // อัปเดตข้อมูล SubTopic
+          subtopic.title = title;
+          subtopic.description = description;
+          subtopic.video_id = newVideo.id; // กำหนด video_id ใหม่
+      } else {
+          // ถ้าไม่มีวิดีโอใหม่ให้แก้ไขแค่ชื่อและคำอธิบาย
+          subtopic.title = title;
+          subtopic.description = description;
+      }
+
+      await subtopic.save();
+      return res.status(200).json({ message: 'SubTopic updated successfully', subtopic });
+  } catch (error) {
+      console.error('Error updating SubTopic:', error);
+      return res.status(500).json({ error: 'Server error' });
+  }
+};
+
+
+
+exports.deleteSubTopicAndClearQuestions = async (req, res) => {
+  try {
+    const { subTopic_id } = req.body; // รับ subTopic_id จาก body ของ request
+
+    // ตรวจสอบว่ามี subTopic_id หรือไม่
+    if (!subTopic_id) {
+      return res.status(400).json({ error: 'subTopic_id is required.' });
+    }
+
+    // ลบ Answers ทั้งหมดที่เชื่อมโยงกับคำถามใน subTopic_id นี้
+    await Answer.destroy({
+      where: {
+        question_id: {
+          [Op.in]: Sequelize.literal(`(SELECT id FROM Questions WHERE subTopic_id = ${subTopic_id})`)
+        }
+      }
+    });
+
+    // ลบคำถามทั้งหมดใน subTopic_id นี้
+    await Question.destroy({
+      where: { subTopic_id: subTopic_id },
+    });
+
+    // ลบ UserVideoProgress ที่เชื่อมโยงกับ subTopic_id
+    await UserVideoProgress.destroy({
+      where: { subtopic_id: subTopic_id },
+    });
+
+    // ลบ SubTopicCourse
+    const result = await SubTopicCourse.destroy({
+      where: { id: subTopic_id },
+    });
+
+    if (result === 0) {
+      return res.status(404).json({ message: "SubTopic not found or already deleted" });
+    }
+
+    return res.status(200).json({ message: 'SubTopic and all associated questions, answers, and video progress deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting subtopic and clearing questions:', error);
+    return res.status(500).json({ error: 'An error occurred while deleting the subtopic and clearing the questions.' });
+  }
+};
+

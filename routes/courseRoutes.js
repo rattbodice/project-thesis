@@ -20,6 +20,8 @@ router.post('/create-course', (req, res, next) => {
       next(); // หากไม่มีข้อผิดพลาด ไปที่ courseController.createCourse
     });
   }, courseController.createCourse);
+router.put('/edit-topic-course/:id', courseController.editTopicCourse);
+
 router.post('/create-topic-course',courseController.createTopicCourse)
 
 router.get('/getCourseById', courseController.getCourseById);
@@ -37,6 +39,20 @@ router.post('/create-subtopic', (req, res, next) => {
     next(); // หากไม่มีข้อผิดพลาด ไปที่ courseController.createSubTopic
   });
 }, courseController.createSubTopic);
+router.put('/order-subtopic', courseController.orderSubtopic)
 router.get('/get-subtopic', courseController.getSubTopicById);
+router.post('/edit-subtopic', (req, res, next) => {
+  videoUploader.single('video')(req, res, (err) => {
+    console.log('req.body:', req.body); // ตรวจสอบข้อมูลใน req.body
+    console.log('req.file:', req.file); // ตรวจสอบว่ามีไฟล์ถูกอัปโหลดเข้ามาหรือไม่
+    if (err instanceof multer.MulterError) {
+      return res.status(400).json({ error: err.message });
+    } else if (err) {
+      return res.status(400).json({ error: err.message });
+    }
+    next();
+  });
+}, courseController.editSubTopic);
+router.delete('/delete-subtopic', courseController.deleteSubTopicAndClearQuestions);
 
 module.exports = router;

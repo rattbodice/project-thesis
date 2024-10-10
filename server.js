@@ -22,6 +22,7 @@ const TypeOrderContent = require('./models/TypeOrderContent');
 const ImageContent = require('./models/ImageContent');
 const VideoContent = require('./models/VideoContent');
 const TextContent = require('./models/TextContent');
+const Answer = require('./models/Answer')
 
 TopicCourse.hasMany(SubTopicCourse, { foreignKey: 'topic_course_id', as: 'subTopics' });
 SubTopicCourse.hasMany(Question, {foreignKey: 'subTopic_id', as: 'questions'})
@@ -54,11 +55,13 @@ const userRoutes = require('./routes/userRoutes')
 const courseRoutes = require('./routes/courseRoutes')
 const questionRoutes = require('./routes/questionRoutes')
 const progressUserVideo = require('./routes/videoProgressRoutes')
+const answerRoutes = require('./routes/answerRoutes')
 
 app.use('/api/users', userRoutes);
 app.use('/api/course', courseRoutes);
 app.use('/api/question', questionRoutes);
 app.use('/api/progressVideo', progressUserVideo);
+app.use('/api/answer', answerRoutes);
 
 const { verifyToken } = require('./middleware/auth');
 app.get('/protected', verifyToken, (req, res) => {

@@ -20,7 +20,8 @@
     "morgan": "^1.10.0",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.11.0",
-    "sequelize": "^6.37.3"
+    "sequelize": "^6.37.3",
+    "vue-toastification": "^1.7.14"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
