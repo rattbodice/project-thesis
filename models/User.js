@@ -15,6 +15,14 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: false,
   },
+  firstName: { // เพิ่มฟิลด์ชื่อ
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  lastName: { // เพิ่มฟิลด์นามสกุล
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
   role: {
     type: DataTypes.ENUM('admin', 'student'),
     allowNull: false,

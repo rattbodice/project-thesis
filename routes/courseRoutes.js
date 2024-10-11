@@ -26,8 +26,9 @@ router.post('/create-topic-course',courseController.createTopicCourse)
 
 router.get('/getCourseById', courseController.getCourseById);
 router.get('/getAllCourses', courseController.getAllCourses);
-router.get('/deleteCourseById' ,courseController.deleteCourse);
+router.delete('/deleteCourseById' ,courseController.deleteCourse);
 router.get('/getAllTopicCourse', courseController.getAllTopicCourse);
+router.delete('/delete-topic-course/:topicId',courseController.deleteTopic);
 
 router.post('/create-subtopic', (req, res, next) => {
   videoUploader.single('video')(req, res, (err) => {
@@ -40,6 +41,7 @@ router.post('/create-subtopic', (req, res, next) => {
   });
 }, courseController.createSubTopic);
 router.put('/order-subtopic', courseController.orderSubtopic)
+router.put('/order-topic', courseController.orderTopic)
 router.get('/get-subtopic', courseController.getSubTopicById);
 router.post('/edit-subtopic', (req, res, next) => {
   videoUploader.single('video')(req, res, (err) => {

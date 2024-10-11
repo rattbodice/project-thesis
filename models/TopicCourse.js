@@ -32,6 +32,6 @@ const TopicCourse = sequelize.define('TopicCourse', {
   timestamps: true,
 });
 
-TopicCourse.belongsTo(Course, { foreignKey: 'course_id' });
+TopicCourse.belongsTo(Course, { foreignKey: 'course_id' ,onDelete: 'CASCADE'});
 
 module.exports = TopicCourse;

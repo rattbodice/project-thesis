@@ -41,7 +41,7 @@ const SubTopicCourse = sequelize.define('SubTopicCourse', {
 });
 
 // สร้างความสัมพันธ์
-SubTopicCourse.belongsTo(Video, { foreignKey: 'video_id', as: 'video' });
-SubTopicCourse.belongsTo(TopicCourse, { foreignKey: 'topic_course_id' });
+SubTopicCourse.belongsTo(Video, { foreignKey: 'video_id', as: 'video',onDelete: 'CASCADE' });
+SubTopicCourse.belongsTo(TopicCourse, { foreignKey: 'topic_course_id',onDelete: 'CASCADE' });
 
 module.exports = SubTopicCourse;

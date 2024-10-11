@@ -7,8 +7,15 @@ const SubTopicCourse = require("../models/SubTopicCourse");
 const Answer = require("../models/Answer"); // นำเข้าคำตอบ
 const Question = require("../models/Question"); // นำเข้าคำถาม
 const UserVideoProgress = require("../models/UserVideoProgress");
+const UserTopicCourse = require('../models/UserTopicProgress');
+const UserTopicProgress = require('../models/UserTopicProgress');
+const UserSubTopicCourse = require('../models/UserSubTopicCourse');
+
+const { checkAndUpdateUserTopicProgress, checkAndUpdateUserSubTopicProgress } = require('./userController');
+
 const path = require("path");
 const fs = require("fs");
+const fsv = require("fs").promises
 const multer = require('multer');
 const { VideoUploader,FileUploader } = require('../config/multer'); // นำเข้า VideoUploader
 const videoUploader = new VideoUploader().getUploader(FileUploader.videoFilter); // เรียกใช้ VideoUploader
@@ -77,30 +84,61 @@ exports.createCourse = async (req, res) => {
     return res.status(500).json({ message: "เกิดข้อผิดพลาดในการสร้างคอร์ส" });
   }
 };
-
 exports.deleteCourse = async (req, res) => {
-  try {
-    const courseId = req.query.courseId;
-    const result = await Course.destroy({
-      where: {
-        id: courseId, // Match the course ID
-      },
-    });
+  const sequelize = require('../config/database');
+  const courseId = req.query.courseId;
+  console.log(courseId);
+  
+  const t = await sequelize.transaction();
 
-    if (result === 0) {
-      // No records found to delete
-      return res
-        .status(404)
-        .json({ message: "Course not found or already deleted" });
+  try {
+    const course = await Course.findByPk(courseId, { transaction: t });
+    if (!course) {
+      throw new Error('ไม่พบคอร์สที่ต้องการลบ');
     }
 
-    return res.status(200).json({ message: "Course deleted successfully" });
+    const topics = await TopicCourse.findAll({ where: { course_id: courseId }, transaction: t });
+
+    for (const topic of topics) {
+      const subtopics = await SubTopicCourse.findAll({ where: { topic_course_id: topic.id }, transaction: t });
+
+      for (const subtopic of subtopics) {
+        // ลบข้อมูลที่เกี่ยวข้องในตาราง UserVideoProgress ก่อน
+        await UserVideoProgress.destroy({
+          where: { subtopic_id: subtopic.id },
+          transaction: t
+        });
+
+        // ลบแถวใน subtopiccourses ก่อนที่จะลบวิดีโอ
+        await subtopic.destroy({ transaction: t });
+
+        const video = await Video.findByPk(subtopic.video_id, { transaction: t });
+
+        if (video) {
+          const videoPath = path.join(__dirname, "../", video.file_path);
+          await fsv.unlink(videoPath); // ลบไฟล์วิดีโอ
+          console.log('ลบไฟล์วิดีโอสำเร็จ');
+          await video.destroy({ transaction: t });
+        }
+      }
+
+      await topic.destroy({ transaction: t });
+    }
+
+    await course.destroy({ transaction: t });
+    await t.commit();
+
+    console.log('ลบคอร์สสำเร็จ');
+    res.status(200).json({ message: 'ลบคอร์สสำเร็จ' });
   } catch (error) {
-    return res
-      .status(500)
-      .json({ message: "Error deleting course", error: error.message });
+    await t.rollback();
+    console.error('เกิดข้อผิดพลาดในการลบคอร์ส:', error);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการลบคอร์ส', error: error.message });
   }
+
 };
+
+
 
 exports.getCourseById = async (req,res) => {
   try {
@@ -201,34 +239,184 @@ exports.editTopicCourse = async (req, res) => {
   }
 };
 
-
 exports.getAllTopicCourse = async (req, res) => {
   try {
+    const userId = req.query.userId; // Get the userId from query parameters
     const courseId = req.query.courseId; // Get the courseId from query parameters
+
+    if (!userId || !courseId) {
+      return res.status(400).json({ message: "Missing userId or courseId" });
+    }
+
+    // ตรวจสอบและอัพเดท progress ของ user ใน topic และ subtopic
+    // นำ userId และ topic_course_id จาก TopicCourse เพื่ออัพเดท progress 
+    const topicCourses = await TopicCourse.findAll({ where: { course_id: courseId } });
+    
+    for (const topic of topicCourses) {
+      // const topicProgressResponse = await checkAndUpdateUserTopicProgress(userId,topic.id);
+    
+    
+      const subTopics = await SubTopicCourse.findAll({ where: { topic_course_id: topic.id } });
+      for (const subTopic of subTopics) {
+        const subTopicProgressResponse = await checkAndUpdateUserSubTopicProgress(userId,subTopic.id);
+    
+      }
+    }
+
+    // ดึงข้อมูล TopicCourse ทั้งหมด
     const topicCourse = await TopicCourse.findAll({
-      where: {
-        course_id: courseId,
-      },
+      where: { course_id: courseId },
+      order: [['no', 'ASC']],
       include: [
         {
-          model: SubTopicCourse, // เชื่อมโยงกับโมเดล SubTopicCourse
-          as: 'subTopics',       // ชื่อที่ตั้งไว้ใน association
+          model: SubTopicCourse,
+          as: 'subTopics',
+          order: [['no', 'ASC']],
           include: [
             {
-              model: Video,      // เชื่อมโยงกับโมเดล Video
-              as: 'video',       // ชื่อที่ตั้งไว้ใน association ของ Video
+              model: Video,
+              as: 'video',
             },
           ],
         },
       ],
     });
 
-    return res.status(200).json(topicCourse); // Return topics as a JSON response
+    // ดึงข้อมูล progress ของผู้ใช้ใน TopicCourse
+    const userTopicProgress = await UserTopicCourse.findAll({
+      where: { user_id: userId }
+    });
+
+    // ดึงข้อมูล progress ของผู้ใช้ใน SubTopicCourse
+    const userSubTopicProgress = await UserSubTopicCourse.findAll({
+      where: { user_id: userId }
+    });
+
+    // แปลงข้อมูล progress ให้เป็นรูปแบบที่ค้นหาง่าย
+    const userTopicProgressMap = {};
+    const userSubTopicProgressMap = {};
+
+    userTopicProgress.forEach(progress => {
+      userTopicProgressMap[progress.topic_course_id] = progress.progress;
+    });
+
+    userSubTopicProgress.forEach(progress => {
+      userSubTopicProgressMap[progress.subtopic_id] = progress.progress;
+    });
+
+    // จัดเรียงและแทรก canuse: true/false ลงใน topicCourse และ subTopics
+    const updatedTopicCourses = topicCourse.map(topic => {
+      const topicProgress = userTopicProgressMap[topic.id] || 0;
+      const canUseTopic = topicProgress >= topic.level;
+    
+      const updatedSubTopics = topic.subTopics.map(subTopic => {
+        const subTopicProgress = userSubTopicProgressMap[subTopic.id] || 0;
+        const canUseSubTopic = subTopicProgress >= subTopic.level;
+    
+        return {
+          ...subTopic.get({ plain: true }),
+          canuse: canUseSubTopic,
+        };
+      }).sort((a, b) => a.no - b.no); // เรียงตาม no ใน subTopics
+    
+      return {
+        ...topic.get({ plain: true }),
+        canuse: canUseTopic,
+        subTopics: updatedSubTopics,
+      };
+    }).sort((a, b) => a.no - b.no); // เรียงตาม no ใน topicCourses
+    
+    return res.status(200).json(updatedTopicCourses);
+    
   } catch (error) {
-    console.log(error)
-    return res
-      .status(500)
-      .json({ message: "เกิดข้อผิดพลาดในการดึงข้อมูลหัวข้อ" });
+    console.log(error);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดในการดึงข้อมูลหัวข้อ" });
+  }
+};
+
+
+
+exports.orderTopic = async (req, res) => {
+  const order = req.body; // รับข้อมูลการจัดเรียงหัวข้อจาก body
+
+  try {
+    await Promise.all(order.map(async ({ id, no, level }) => { // id คือ ID ของหัวข้อ, no คือลำดับที่ต้องการ
+      const topic = await TopicCourse.findByPk(id);
+      if (topic) {
+        topic.no = no; // อัปเดตหมายเลขลำดับ
+        topic.level = level; // อัปเดต level ด้วย
+        await topic.save(); // บันทึกการเปลี่ยนแปลง
+      }
+    }));
+
+    res.json({ message: 'อัปเดตลำดับหัวข้อสำเร็จ' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการอัปเดตลำดับหัวข้อ' });
+  }
+};
+
+exports.deleteTopic = async (req, res) => {
+  try {
+    const { topicId } = req.params; // รับค่า topicId จาก body ของ request
+
+    console.log('-------------'+topicId)
+    // ตรวจสอบว่ามี topicId หรือไม่
+    if (!topicId) {
+      return res.status(400).json({ error: 'กรุณาระบุ topicId' });
+    }
+
+    // ตรวจสอบว่า topicCourse มีอยู่หรือไม่
+    const topicCourse = await TopicCourse.findByPk(topicId);
+    if (!topicCourse) {
+      return res.status(404).json({ message: 'ไม่พบหัวข้อที่ต้องการลบ' });
+    }
+
+    // ดึงข้อมูล SubTopics ที่เชื่อมโยงกับ topicCourse นี้
+    const subTopics = await SubTopicCourse.findAll({ where: { topic_course_id: topicId } });
+
+    // ลบข้อมูลที่เกี่ยวข้องกับ subTopics เช่น วิดีโอ คำถาม คำตอบ และความก้าวหน้าของวิดีโอ
+    for (const subTopic of subTopics) {
+      // ลบคำตอบที่เชื่อมโยงกับคำถามใน subTopic นี้
+      await Answer.destroy({
+        where: {
+          question_id: {
+            [Op.in]: Sequelize.literal(`(SELECT id FROM Questions WHERE subTopic_id = ${subTopic.id})`)
+          }
+        }
+      });
+
+      // ลบคำถามที่เชื่อมโยงกับ subTopic นี้
+      await Question.destroy({
+        where: { subTopic_id: subTopic.id }
+      });
+
+      // ลบความก้าวหน้าของวิดีโอที่เชื่อมโยงกับ subTopic นี้
+      await UserVideoProgress.destroy({
+        where: { subtopic_id: subTopic.id }
+      });
+
+      // ลบวิดีโอที่เชื่อมโยงกับ subTopic นี้และลบไฟล์วิดีโอออกจากระบบ
+      const video = await Video.findByPk(subTopic.video_id);
+      if (video) {
+        const videoPath = path.join(__dirname, "../", video.file_path);
+        fs.unlink(videoPath, (err) => {
+          if (err) console.error('เกิดข้อผิดพลาดในการลบไฟล์วิดีโอ:', err);
+        });
+        await subTopic.destroy();
+        await video.destroy();
+      }
+
+      // ลบ SubTopic
+    }
+
+    // ลบ TopicCourse
+    await topicCourse.destroy();
+
+    return res.status(200).json({ message: 'ลบหัวข้อและข้อมูลที่เกี่ยวข้องสำเร็จ' });
+  } catch (error) {
+    console.error('เกิดข้อผิดพลาดในการลบหัวข้อ:', error);
+    return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการลบหัวข้อ' });
   }
 };
 
@@ -307,6 +495,9 @@ exports.orderSubtopic = async (req,res) => {
     res.status(500).json({ message: 'เกิดข้อผิดพลาดในการอัปเดตลำดับ' });
   }
 }
+
+
+
 
 exports.getSubTopicsByTopicCourseId = async (req, res) => {
   try {

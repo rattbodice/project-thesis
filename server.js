@@ -23,6 +23,8 @@ const ImageContent = require('./models/ImageContent');
 const VideoContent = require('./models/VideoContent');
 const TextContent = require('./models/TextContent');
 const Answer = require('./models/Answer')
+const UserSubTopicCourse = require('./models/UserSubTopicCourse')
+const UserTopicCourse = require('./models/UserTopicCourse')
 
 TopicCourse.hasMany(SubTopicCourse, { foreignKey: 'topic_course_id', as: 'subTopics' });
 SubTopicCourse.hasMany(Question, {foreignKey: 'subTopic_id', as: 'questions'})
