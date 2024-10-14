@@ -25,9 +25,20 @@ const TextContent = require('./models/TextContent');
 const Answer = require('./models/Answer')
 const UserSubTopicCourse = require('./models/UserSubTopicCourse')
 const UserTopicCourse = require('./models/UserTopicCourse')
+const UserVideoProgress = require('./models/UserVideoProgress')
+
+
 
 TopicCourse.hasMany(SubTopicCourse, { foreignKey: 'topic_course_id', as: 'subTopics' });
+SubTopicCourse.hasMany(UserVideoProgress, {
+  foreignKey: 'subtopic_id', // สมมติว่าคุณมี foreign key นี้ใน UserVideoProgress
+  as: 'userVideoProgress', // ใช้ alias ที่ต้องการ
+});
 SubTopicCourse.hasMany(Question, {foreignKey: 'subTopic_id', as: 'questions'})
+Question.hasMany(Answer, {
+  foreignKey: 'question_id', // สมมติว่าคุณมี foreign key นี้ใน Answer
+  as: 'answers', // ใช้ alias ที่ต้องการ
+});
 
 // ========================
 // Middleware settings

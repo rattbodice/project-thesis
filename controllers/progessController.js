@@ -1,4 +1,9 @@
 const UserVideoProgress = require('../models/UserVideoProgress');
+
+const TopicCourse = require('../models/TopicCourse');
+const SubTopicCourse = require('../models/SubTopicCourse');
+const Answer = require('../models/Answer');
+const Question = require('../models/Question');
 const User = require('../models/User');
 
 exports.createUserVideoProgress = async (req, res) => {
@@ -77,3 +82,50 @@ exports.getUserVideoProgress = async (req, res) => {
       return res.status(500).json({ error: 'Internal server error' });
     }
   };
+
+
+  exports.getTopicsWithUserProgress = async (req, res) => {
+    const { courseId } = req.params; // รับ courseId จากพารามิเตอร์
+
+    try {
+        // ดึงหัวข้อทั้งหมดที่ตรงกับ courseId พร้อมกับข้อมูล SubTopic, UserVideoProgress, Question และ Answer
+        const topics = await TopicCourse.findAll({
+            where: {
+                course_id: courseId,
+            },
+            include: [
+                {
+                    model: SubTopicCourse,
+                    as: 'subTopics',
+                    include: [
+                        {
+                            model: UserVideoProgress, 
+                            as: 'userVideoProgress', // เปลี่ยนให้ตรงกับ alias ที่กำหนดในโมเดล
+                            include: [
+                                {
+                                    model: User,
+                                    as: 'user',
+                                    attributes: ['id', 'username', 'email', 'firstName', 'lastName'],
+                                },
+                            ],
+                            required: false,
+                        }
+                    ],
+                },
+            ],
+        });
+
+        if (!topics || topics.length === 0) {
+            return res.status(404).json({ message: 'No topics found for this course' });
+        }
+
+        console.log(topics)
+        res.status(200).json({ success: true, data: topics });
+    } catch (error) {
+        console.log('Error retrieving topics:', error);
+        res.status(500).json({ message: 'Failed to retrieve topics', error: error.message });
+    }
+};
+
+
+  

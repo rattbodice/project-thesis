@@ -10,6 +10,9 @@ const TopicCourse = require('../models/TopicCourse');
 const UserVideoProgress = require('../models/UserVideoProgress');
 const UserTopicProgress = require('../models/UserTopicProgress');
 const UserSubTopicCourse = require('../models/UserSubTopicCourse');
+const Answer = require('../models/Answer');
+const Question = require('../models/Question');
+
 
 // ฟังก์ชันสำหรับการล็อกอิน
 // ฟังก์ชันสำหรับการล็อกอิน
@@ -318,11 +321,58 @@ exports.deleteUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // ลบผู้ใช้
+    await UserVideoProgress.destroy({ where: { user_id: id } });
+    // ลบผู้ใช้ (ข้อมูลที่เกี่ยวข้องจะถูกลบอัตโนมัติถ้าใช้ CASCADE)
     await user.destroy();
 
     res.status(200).json({ message: 'User deleted successfully' });
   } catch (error) {
+    console.log(error);
     res.status(500).json({ message: 'Failed to delete user', error });
   }
 };
+
+exports.getUserProgressWithResults = async (req, res) => {
+  const { userId } = req.params; // รับ userId จาก request
+
+  try {
+    // ค้นหาผู้ใช้พร้อมกับข้อมูลความคืบหน้าในวิดีโอของแต่ละบทเรียน
+    const userProgress = await User.findOne({
+      where: { id: userId },
+      include: [
+        {
+          model: UserVideoProgress,
+          include: [
+            {
+              model: SubTopicCourse,
+              include: [
+                {
+                  model: Question,
+                  include: [
+                    {
+                      model: Answer,
+                      where: { user_id: userId }, // ดึงคำตอบของผู้ใช้แต่ละคน
+                      required: false, // ถ้าไม่มีคำตอบจะยังแสดงข้อมูลบทเรียนอยู่
+                    },
+                  ],
+                  required: false, // บางบทเรียนอาจไม่มีคำถาม
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!userProgress) {
+      return res.status(404).json({ message: 'User not found or no progress data' });
+    }
+
+    // ส่งข้อมูลผู้ใช้พร้อมความคืบหน้าและผลลัพธ์การเรียนกลับไป
+    res.status(200).json(userProgress);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to retrieve user progress', error });
+  }
+};
+
