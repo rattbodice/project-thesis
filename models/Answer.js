@@ -31,7 +31,7 @@ const Answer = sequelize.define('Answer', {
 });
 
 // สร้างความสัมพันธ์
-Answer.belongsTo(Question, { foreignKey: 'question_id' });
-Answer.belongsTo(User, { foreignKey: 'user_id' });
+Answer.belongsTo(Question, { foreignKey: 'question_id',onDelete: 'CASCADE' });
+Answer.belongsTo(User, { foreignKey: 'user_id',onDelete: 'CASCADE' });
 
 module.exports = Answer;

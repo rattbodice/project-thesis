@@ -20,6 +20,21 @@ router.post('/create-course', (req, res, next) => {
       next(); // หากไม่มีข้อผิดพลาด ไปที่ courseController.createCourse
     });
   }, courseController.createCourse);
+  router.put('/edit-course/:courseId', (req, res, next) => {
+    // ใช้ imageUploader สำหรับจัดการการอัปโหลดรูปภาพ (ถ้ามี)
+    imageUploader.single('image')(req, res, (err) => {
+      if (err instanceof multer.MulterError) {
+        // จัดการกรณีเกิดข้อผิดพลาดจาก multer
+        return res.status(400).json({ error: err.message });
+      } else if (err) {
+        // จัดการข้อผิดพลาดทั่วไป
+        return res.status(400).json({ error: err.message });
+      }
+      next(); // หากไม่มีข้อผิดพลาด ไปที่ courseController.editCourse
+    });
+  }, courseController.editCourse);
+
+  
 router.put('/edit-topic-course/:id', courseController.editTopicCourse);
 
 router.post('/create-topic-course',courseController.createTopicCourse)

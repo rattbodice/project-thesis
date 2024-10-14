@@ -12,6 +12,7 @@ const UserTopicProgress = require('../models/UserTopicProgress');
 const UserSubTopicCourse = require('../models/UserSubTopicCourse');
 
 // ฟังก์ชันสำหรับการล็อกอิน
+// ฟังก์ชันสำหรับการล็อกอิน
 exports.login = async (req, res) => {
   const { email, password } = req.body;
 
@@ -29,14 +30,15 @@ exports.login = async (req, res) => {
     }
 
     // สร้าง JWT Token
-    const token = jwt.sign({ userId: user.id }, 'your_jwt_secret', { expiresIn: '1h' });
+    const token = jwt.sign({ userId: user.id, role: user.role }, 'your_jwt_secret', { expiresIn: '1h' });
 
-    // ส่ง JWT Token กลับไปใน response body
-    res.status(200).json({ message: 'Login successful', token });
+    // ส่ง JWT Token และสถานะผู้ใช้กลับไปใน response body
+    res.status(200).json({ message: 'Login successful', token, role: user.role });
   } catch (error) {
     res.status(500).json({ message: 'Server error', error });
   }
 };
+
 
 // ฟังก์ชันสำหรับการล็อกเอาท์
 exports.logout = (req, res) => {
@@ -228,5 +230,99 @@ exports.checkAndUpdateUserSubTopicProgress = async (user_id, subtopic_id) => {
   } catch (error) {
     console.error('Error checking/updating user progress:', error);
     return { error: true, message: 'Failed to check and update user progress' };
+  }
+};
+
+
+// ฟังก์ชันสำหรับการดึงข้อมูลผู้ใช้ทั้งหมด
+exports.getAllUsers = async (req, res) => {
+  try {
+    // ดึงข้อมูลผู้ใช้ทั้งหมดจากฐานข้อมูล
+    const users = await User.findAll({
+      attributes: ['id', 'username', 'email', 'firstName', 'lastName','role'], // ระบุฟิลด์ที่ต้องการแสดง
+    });
+
+    // ส่งข้อมูลผู้ใช้ทั้งหมดกลับใน response body
+    res.status(200).json({ users });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
+  }
+};
+// Add new user (Admin only)
+exports.addUser = async (req, res) => {
+  const { username, email, password, firstName, lastName, role } = req.body;
+
+  try {
+    // Hash the password before saving
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    // Create the new user
+    const newUser = await User.create({
+      username,
+      email,
+      password: hashedPassword,
+      firstName,
+      lastName,
+      role
+    });
+
+    res.status(201).json({ message: 'User created successfully', user: newUser });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to create user', error });
+  }
+};
+
+// Edit user (Admin only)
+exports.editUser = async (req, res) => {
+  const { id } = req.params;
+  const { username, email, firstName, lastName, role, password } = req.body; // เพิ่ม password
+
+  try {
+    // Find the user by ID
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Prepare the update data
+    const updateData = {
+      username,
+      email,
+      firstName,
+      lastName,
+      role,
+    };
+
+    // Only update password if provided
+    if (password) {
+      updateData.password = password; // ถ้ามีการป้อนรหัสผ่านให้เพิ่มเข้าไปในข้อมูลที่จะอัปเดต
+    }
+
+    // Update user details
+    await user.update(updateData);
+
+    res.status(200).json({ message: 'User updated successfully', user });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update user', error });
+  }
+};
+
+
+exports.deleteUser = async (req, res) => {
+  const { id } = req.params; // รับ ID ของผู้ใช้ที่ต้องการลบจากพารามิเตอร์
+
+  try {
+    // ค้นหาผู้ใช้ตาม ID
+    const user = await User.findByPk(id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // ลบผู้ใช้
+    await user.destroy();
+
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete user', error });
   }
 };

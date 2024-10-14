@@ -30,5 +30,5 @@ const Question = sequelize.define('Question', {
   timestamps: true,
 });
 
-Question.belongsTo(SubTopicCourse, { foreignKey: 'subTopic_id' });
+Question.belongsTo(SubTopicCourse, { foreignKey: 'subTopic_id' ,onDelete: 'CASCADE'});
 module.exports = Question;

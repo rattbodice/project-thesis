@@ -43,7 +43,7 @@ exports.createCourse = async (req, res) => {
       return res.status(404).json({ message: "ผู้ใช้ไม่พบ" });
     }
 
-    // ขั้นตอนการอัปโหลดรูปภาพก่อนสร้างคอร์ส
+    // ขั้นตอนการอัปโหลดรูปภาพก่อนสร้างบทเรียน
     let image = null;
     if (file) {
       // เส้นทางของโฟลเดอร์ที่ต้องการเก็บรูปภาพ
@@ -68,7 +68,7 @@ exports.createCourse = async (req, res) => {
 
     console.log("Creating new course...");
 
-    // สร้างคอร์สใหม่ในฐานข้อมูล
+    // สร้างบทเรียนใหม่ในฐานข้อมูล
     const newCourse = await Course.create({
       title,
       description,
@@ -77,13 +77,67 @@ exports.createCourse = async (req, res) => {
       created_by: user.id,
     });
 
-    // ส่งข้อมูลคอร์สที่ถูกสร้างกลับไปให้ client
+    // ส่งข้อมูลบทเรียนที่ถูกสร้างกลับไปให้ client
     return res.status(201).json(newCourse);
   } catch (error) {
-    console.error("เกิดข้อผิดพลาดในการสร้างคอร์ส:", error);
-    return res.status(500).json({ message: "เกิดข้อผิดพลาดในการสร้างคอร์ส" });
+    console.error("เกิดข้อผิดพลาดในการสร้างบทเรียน:", error);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดในการสร้างบทเรียน" });
   }
 };
+exports.editCourse = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const { title, description, level } = req.body;
+    const file = req.file; // รูปภาพใหม่ที่อัปโหลดจาก form
+
+    // ตรวจสอบว่าบทเรียนที่ต้องการแก้ไขมีอยู่จริงหรือไม่
+    const course = await Course.findByPk(courseId);
+    if (!course) {
+      console.log("Course not found");
+      return res.status(404).json({ message: "ไม่พบบทเรียน" });
+    }
+
+
+    // อัปเดตรูปภาพหากมีการอัปโหลดใหม่
+    let image = null;
+    if (file) {
+      // เส้นทางของโฟลเดอร์ที่ต้องการเก็บรูปภาพ
+      const uploadFolder = path.join(__dirname, "..", "uploads", "images");
+
+      // ตรวจสอบและสร้างโฟลเดอร์ถ้าไม่มีก่อนบันทึกไฟล์
+      ensureUploadFolderExists(uploadFolder);
+
+      // เส้นทางของไฟล์ที่บันทึกโดย multer
+      const imagePath = path.join(uploadFolder, file.filename);
+
+      // สร้างข้อมูล ImageContent ใหม่ในฐานข้อมูล
+      image = await ImageContent.create({
+        image_name: file.filename,
+        image_url: `/uploads/images/${file.filename}`, // เก็บ URL เพื่อใช้ในฟรอนต์เอนด์
+      });
+
+      // อัปเดตรูปภาพของบทเรียน
+      course.image_id = image.id;
+    }
+
+    // อัปเดตข้อมูลบทเรียนในฐานข้อมูล
+    course.title = title || course.title;
+    course.description = description || course.description;
+    course.level = level || course.level;
+
+    // บันทึกการเปลี่ยนแปลง
+    await course.save();
+
+    console.log("Course updated successfully");
+
+    // ส่งข้อมูลบทเรียนที่ถูกแก้ไขกลับไปให้ client
+    return res.status(200).json(course);
+  } catch (error) {
+    console.error("เกิดข้อผิดพลาดในการแก้ไขบทเรียน:", error);
+    return res.status(500).json({ message: "เกิดข้อผิดพลาดในการแก้ไขบทเรียน" });
+  }
+};
+
 exports.deleteCourse = async (req, res) => {
   const sequelize = require('../config/database');
   const courseId = req.query.courseId;
@@ -94,7 +148,7 @@ exports.deleteCourse = async (req, res) => {
   try {
     const course = await Course.findByPk(courseId, { transaction: t });
     if (!course) {
-      throw new Error('ไม่พบคอร์สที่ต้องการลบ');
+      throw new Error('ไม่พบบทเรียนที่ต้องการลบ');
     }
 
     const topics = await TopicCourse.findAll({ where: { course_id: courseId }, transaction: t });
@@ -103,24 +157,38 @@ exports.deleteCourse = async (req, res) => {
       const subtopics = await SubTopicCourse.findAll({ where: { topic_course_id: topic.id }, transaction: t });
 
       for (const subtopic of subtopics) {
+        // ลบคำถามทั้งหมดใน SubTopic นี้ก่อน
+    const questions = await Question.findAll({ where: { subTopic_id: subtopic.id }, transaction: t });
+
+    for (const question of questions) {
+      // ลบคำตอบทั้งหมดที่เชื่อมโยงกับคำถามนี้ก่อน
+      await Answer.destroy({
+        where: { question_id: question.id },
+        transaction: t
+      });
+
+      // ลบคำถาม
+      await question.destroy({ transaction: t });
+    }
+    
         // ลบข้อมูลที่เกี่ยวข้องในตาราง UserVideoProgress ก่อน
         await UserVideoProgress.destroy({
           where: { subtopic_id: subtopic.id },
           transaction: t
         });
-
+    
         // ลบแถวใน subtopiccourses ก่อนที่จะลบวิดีโอ
         await subtopic.destroy({ transaction: t });
-
+    
         const video = await Video.findByPk(subtopic.video_id, { transaction: t });
-
+    
         if (video) {
           const videoPath = path.join(__dirname, "../", video.file_path);
           await fsv.unlink(videoPath); // ลบไฟล์วิดีโอ
           console.log('ลบไฟล์วิดีโอสำเร็จ');
           await video.destroy({ transaction: t });
         }
-      }
+    }
 
       await topic.destroy({ transaction: t });
     }
@@ -128,12 +196,12 @@ exports.deleteCourse = async (req, res) => {
     await course.destroy({ transaction: t });
     await t.commit();
 
-    console.log('ลบคอร์สสำเร็จ');
-    res.status(200).json({ message: 'ลบคอร์สสำเร็จ' });
+    console.log('ลบบทเรียนสำเร็จ');
+    res.status(200).json({ message: 'ลบบทเรียนสำเร็จ' });
   } catch (error) {
     await t.rollback();
-    console.error('เกิดข้อผิดพลาดในการลบคอร์ส:', error);
-    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการลบคอร์ส', error: error.message });
+    console.error('เกิดข้อผิดพลาดในการลบบทเรียน:', error);
+    res.status(500).json({ message: 'เกิดข้อผิดพลาดในการลบบทเรียน', error: error.message });
   }
 
 };
@@ -146,7 +214,7 @@ exports.getCourseById = async (req,res) => {
     const course = await Course.findByPk(courseId)
 
     if (!course) {
-      return res.status(404).json({ message: "ไม่พบคอร์สดังกล่าว" });
+      return res.status(404).json({ message: "ไม่พบบทเรียนดังกล่าว" });
     }
 
     return res.status(200).json(course);
@@ -155,13 +223,13 @@ exports.getCourseById = async (req,res) => {
     
     return res
       .status(500)
-      .json({ message: "เกิดข้อผิดพลาดในการดึงข้อมูลคอร์ส" });
+      .json({ message: "เกิดข้อผิดพลาดในการดึงข้อมูลบทเรียน" });
   }
 }
 
 exports.getAllCourses = async (req, res) => {
   try {
-    // ค้นหาคอร์สทั้งหมดในฐานข้อมูล
+    // ค้นหาบทเรียนทั้งหมดในฐานข้อมูล
     const courses = await Course.findAll({
       include: [
         {
@@ -171,13 +239,13 @@ exports.getAllCourses = async (req, res) => {
       ],
     });
 
-    // ส่งข้อมูลคอร์สทั้งหมดกลับไปยัง client
+    // ส่งข้อมูลบทเรียนทั้งหมดกลับไปยัง client
     return res.status(200).json(courses);
   } catch (error) {
-    console.error("เกิดข้อผิดพลาดในการดึงข้อมูลคอร์สทั้งหมด:", error);
+    console.error("เกิดข้อผิดพลาดในการดึงข้อมูลบทเรียนทั้งหมด:", error);
     return res
       .status(500)
-      .json({ message: "เกิดข้อผิดพลาดในการดึงข้อมูลคอร์สทั้งหมด" });
+      .json({ message: "เกิดข้อผิดพลาดในการดึงข้อมูลบทเรียนทั้งหมด" });
   }
 };
 
@@ -189,7 +257,7 @@ exports.createTopicCourse = async (req, res) => {
     const course = await Course.findByPk(course_id);
 
     if (!course) {
-      return res.status(404).json({ message: "ไม่พบคอร์สดังกล่าว" });
+      return res.status(404).json({ message: "ไม่พบบทเรียนดังกล่าว" });
     }
 
     // Create a new topic for the course
@@ -206,7 +274,7 @@ exports.createTopicCourse = async (req, res) => {
     console.log(error);
     return res
       .status(500)
-      .json({ message: "เกิดข้อผิดพลาดในการสร้างหัวข้อในคอร์ส" });
+      .json({ message: "เกิดข้อผิดพลาดในการสร้างหัวข้อในบทเรียน" });
   }
 };
 
@@ -238,6 +306,30 @@ exports.editTopicCourse = async (req, res) => {
       .json({ message: "เกิดข้อผิดพลาดในการแก้ไขหัวข้อ" });
   }
 };
+
+exports.deleteTopicCourse = async (req, res) => {
+  const { topicCourseId } = req.params; // ดึง topicCourseId จาก request parameters
+
+  try {
+    // ตรวจสอบว่ามีหัวข้อที่ต้องการลบอยู่ในระบบหรือไม่
+    const topicCourse = await TopicCourse.findByPk(topicCourseId);
+
+    if (!topicCourse) {
+      return res.status(404).json({ message: "ไม่พบหัวข้อบทเรียนดังกล่าว" });
+    }
+
+    // ลบหัวข้อบทเรียน
+    await topicCourse.destroy();
+
+    return res.status(200).json({ message: "ลบหัวข้อบทเรียนสำเร็จ" });
+  } catch (error) {
+    console.log(error);
+    return res
+      .status(500)
+      .json({ message: "เกิดข้อผิดพลาดในการลบหัวข้อบทเรียน" });
+  }
+};
+
 
 exports.getAllTopicCourse = async (req, res) => {
   try {
@@ -360,7 +452,6 @@ exports.deleteTopic = async (req, res) => {
   try {
     const { topicId } = req.params; // รับค่า topicId จาก body ของ request
 
-    console.log('-------------'+topicId)
     // ตรวจสอบว่ามี topicId หรือไม่
     if (!topicId) {
       return res.status(400).json({ error: 'กรุณาระบุ topicId' });
@@ -375,8 +466,13 @@ exports.deleteTopic = async (req, res) => {
     // ดึงข้อมูล SubTopics ที่เชื่อมโยงกับ topicCourse นี้
     const subTopics = await SubTopicCourse.findAll({ where: { topic_course_id: topicId } });
 
-    // ลบข้อมูลที่เกี่ยวข้องกับ subTopics เช่น วิดีโอ คำถาม คำตอบ และความก้าวหน้าของวิดีโอ
+    // ลบข้อมูลที่เกี่ยวข้องกับ subTopics
     for (const subTopic of subTopics) {
+      // ลบความก้าวหน้าของวิดีโอที่เชื่อมโยงกับ subTopic นี้
+      await UserVideoProgress.destroy({
+        where: { subtopic_id: subTopic.id }
+      });
+
       // ลบคำตอบที่เชื่อมโยงกับคำถามใน subTopic นี้
       await Answer.destroy({
         where: {
@@ -391,11 +487,6 @@ exports.deleteTopic = async (req, res) => {
         where: { subTopic_id: subTopic.id }
       });
 
-      // ลบความก้าวหน้าของวิดีโอที่เชื่อมโยงกับ subTopic นี้
-      await UserVideoProgress.destroy({
-        where: { subtopic_id: subTopic.id }
-      });
-
       // ลบวิดีโอที่เชื่อมโยงกับ subTopic นี้และลบไฟล์วิดีโอออกจากระบบ
       const video = await Video.findByPk(subTopic.video_id);
       if (video) {
@@ -403,11 +494,11 @@ exports.deleteTopic = async (req, res) => {
         fs.unlink(videoPath, (err) => {
           if (err) console.error('เกิดข้อผิดพลาดในการลบไฟล์วิดีโอ:', err);
         });
-        await subTopic.destroy();
         await video.destroy();
       }
 
       // ลบ SubTopic
+      await subTopic.destroy();
     }
 
     // ลบ TopicCourse
@@ -419,6 +510,7 @@ exports.deleteTopic = async (req, res) => {
     return res.status(500).json({ message: 'เกิดข้อผิดพลาดในการลบหัวข้อ' });
   }
 };
+
 
 
 
