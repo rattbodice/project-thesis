@@ -171,3 +171,32 @@ exports.clearQuestions = async (req, res) => {
   }
 };
 
+exports.getQuestionsWithAnswersByUser = async (req, res) => {
+  const { subTopicId, userId } = req.params;
+console.log(subTopicId);
+console.log(userId);
+
+  try {
+    // Query ข้อมูลคำถามใน subtopic ที่มีคำตอบของ user คนนี้
+    const questions = await Question.findAll({
+      where: { subTopic_id: subTopicId },
+      include: [
+        {
+          model: Answer,
+          as:'answers',
+          where: { user_id: userId },
+          required: false, // เพื่อดึงคำถามที่อาจยังไม่มีคำตอบของ user คนนี้ได้ด้วย
+        },
+      ],
+    });
+
+    if (questions.length === 0) {
+      return res.status(404).json({ message: 'ไม่พบคำถามใน subtopic นี้' });
+    }
+    console.log(questions)
+    return res.status(200).json({ success: true, data: questions });
+  } catch (error) {
+    console.error('เกิดข้อผิดพลาดในการดึงข้อมูล:', error);
+    res.status(500).json({ message: 'Failed to retrieve question', error: error.message });
+  }
+};

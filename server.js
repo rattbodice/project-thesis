@@ -51,7 +51,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(cookieParser());
 // ตั้งค่า CORS ให้อนุญาตการเชื่อมต่อจากต่างโดเมน (เช่น จาก frontend)
 app.use(cors({
-  origin: 'http://localhost:3000', // เจาะจงโดเมนต้นทางที่อนุญาต
+  origin: process.env.CORS_ORIGIN || 'http://localhost:3000', // เจาะจงโดเมนต้นทางที่อนุญาต
   credentials: true,               // อนุญาตการส่ง cookies และข้อมูล session
 }));
 
