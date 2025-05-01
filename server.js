@@ -1,8 +1,10 @@
+require('module-alias/register');
+
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
-const app = express();
+const { Server } = require('socket.io')
 const path = require('path');
 const sequelize = require('./config/database');
 const cookieParser = require('cookie-parser');
@@ -29,6 +31,11 @@ const UserVideoProgress = require('./models/UserVideoProgress')
 
 
 
+// ========================
+// ตั้งค่าความสัมพันธ์ระหว่างโมเดล
+
+
+
 TopicCourse.hasMany(SubTopicCourse, { foreignKey: 'topic_course_id', as: 'subTopics' });
 SubTopicCourse.hasMany(UserVideoProgress, {
   foreignKey: 'subtopic_id', // สมมติว่าคุณมี foreign key นี้ใน UserVideoProgress
@@ -43,7 +50,15 @@ Question.hasMany(Answer, {
 // ========================
 // Middleware settings
 // ========================
-
+const app = express();
+const server  = require('http').createServer(app);  // สร้างเซิร์ฟเวอร์ HTTP
+// ถ้า Nuxt รันที่ localhost:3000 ให้ใส่ origin นี้
+const io = new Server(server, {
+  cors: {
+    origin: 'http://localhost:3000', // หรือ domain ของ Nuxt
+    methods: ['GET', 'POST'],
+  },
+})
 // ใช้ body-parser เพื่อแยกข้อมูล request body เป็น JSON
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -83,8 +98,11 @@ app.get('/protected', verifyToken, (req, res) => {
     user: req.user // ข้อมูลผู้ใช้จาก JWT token
   });
 });
-// app.use('/api/courses', courseRoutes);
-// app.use('/api/videos', videoRoutes);
+
+
+// นำเข้าโมดูลที่แยกไว้
+const socketHandler = require('./socketIO');
+socketHandler(io);
 
 // ========================
 // การเริ่มต้นเซิร์ฟเวอร์
@@ -95,7 +113,7 @@ const PORT = process.env.PORT || 8001;
 // Sync กับฐานข้อมูลและรันเซิร์ฟเวอร์
 sequelize.sync()
   .then(() => {
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
   })

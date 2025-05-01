@@ -2,62 +2,58 @@ const UserVideoProgress = require('../models/UserVideoProgress');
 const Course = require("../models/Course");
 const TopicCourse = require('../models/TopicCourse');
 const SubTopicCourse = require('../models/SubTopicCourse');
-const Answer = require('../models/Answer');
-const Question = require('../models/Question');
+
 const User = require('../models/User');
 
 exports.createUserVideoProgress = async (req, res) => {
   try {
     const { user_id, subtopic_id, last_watched_time, is_finished } = req.body;
 
-    // ตรวจสอบว่ามีข้อมูลสำคัญครบถ้วนหรือไม่
+    // ตรวจสอบความถูกต้องของข้อมูล
     if (!user_id || !subtopic_id || last_watched_time === undefined || is_finished === undefined) {
-      return res.status(400).json({ error: 'Missing required fields.' });
+      res.status(400).json({ error: 'Missing required fields.' });
+      return;
     }
 
-    // ตรวจสอบว่าผู้ใช้นี้มีอยู่ในระบบหรือไม่
-    const userExists = await User.findOne({ where: { id: user_id } });
-    if (!userExists) {
-      return res.status(400).json({ error: 'User does not exist.' });
-    }
-
-    // ตรวจสอบว่า last_watched_time เป็นจำนวนบวก
     if (last_watched_time < 0) {
-      return res.status(400).json({ error: 'Last watched time must be a positive number.' });
+      res.status(400).json({ error: 'Last watched time must be a positive number.' });
+      return;
     }
 
-    // ค้นหา UserVideoProgress ที่มีอยู่แล้วในระบบ
-    const existingProgress = await UserVideoProgress.findOne({
-      where: {
-        user_id,
-        subtopic_id,
+    // ตอบกลับก่อนเพื่อให้ beacon สำเร็จ
+    res.status(204).end(); // No Content (ไม่มีข้อมูลตอบกลับ)
+
+    // เช็ค user (async หลังจากตอบแล้ว)
+    const userExists = await User.findOne({ where: { id: user_id } });
+    if (!userExists) return;
+
+    // อัปเดตหรือสร้าง progress
+    const [progress, created] = await UserVideoProgress.findOrCreate({
+      where: { user_id, subtopic_id },
+      defaults: {
+        last_watched_time,
+        is_finished,
       },
     });
 
-    if (existingProgress) {
-      // ถ้าพบข้อมูลแล้ว ทำการอัปเดตข้อมูล
-      existingProgress.last_watched_time = last_watched_time;
-      existingProgress.is_finished = is_finished;
-
-      await existingProgress.save(); // บันทึกการเปลี่ยนแปลง
-
-      return res.status(200).json({ success: true, data: existingProgress });
-    } else {
-      // ถ้าไม่พบข้อมูล ให้สร้างใหม่
-      const userVideoProgress = await UserVideoProgress.create({
-        user_id,
-        subtopic_id,
-        last_watched_time,
-        is_finished,
-      });
-
-      return res.status(201).json({ success: true, data: userVideoProgress });
+    if (!created) {
+      // ถ้ามีอยู่แล้ว อัปเดต
+      progress.last_watched_time = last_watched_time;
+      progress.is_finished = is_finished;
+      await progress.save();
     }
+
+    console.log('✅ Progress saved (via beacon):', {
+      user_id,
+      subtopic_id,
+      last_watched_time,
+      is_finished,
+    });
   } catch (error) {
-    console.error('Error in createUserVideoProgress:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Error in createUserVideoProgress (beacon):', error.message);
   }
 };
+
 
 
 exports.getUserVideoProgress = async (req, res) => {
